@@ -1,54 +1,99 @@
-import React, { Component } from 'react';
+import React, { useState, Fragment } from 'react';
 import Navbar from './components/layout/Navbar';
-import Users from './components/users/Users'
-import axios from 'axios'
-import Search from '../src/components/users/Search'
-
+import Users from './components/users/Users';
+import User from './components/users/User';
+import axios from 'axios';
+import Search from '../src/components/users/Search';
+import Alert from './components/layout/alert';
+import { BrowserRouter as Router, Switch, Route } from 'react-router-dom';
+import About from './components/pages/About'
 import './App.css';
 
-class App extends Component {
-  state = {
-    users: [],
-    loading: false
-  }
-  // async componentDidMount() {
-  //   this.setState({ loading: true });
+const App = () => {
 
-  //   const res = await axios
-  //     .get(`http://api.github.com/users?client_id=${process.env.REACT_APP_GITHUB_CLIENT_ID}&client_secret=${process.env.REACT_APP_GITHUB_CLIENT_SECRET}`);
-
-  //   this.setState({ users: res.data, loading: false })
-  // }
+  const [users, setUsers] = useState([]);
+  const [user, setUser] = useState({})
+  const [loading, setLoading] = useState(false)
+  const [alert, setAlert] = useState(null)
+  const [repos, setRepos] = useState([])
 
 
-  searchUsers = async text => {
-    this.setState({ loading: true });
+  const searchUsers = async text => {
+    setAlert(true);
 
     const res = await axios
       .get(`http://api.github.com/search/users?q=${text}&client_id=${process.env.REACT_APP_GITHUB_CLIENT_ID}&client_secret=${process.env.REACT_APP_GITHUB_CLIENT_SECRET}`);
 
-    this.setState({ users: res.data.items, loading: false })
+    setUsers(res.data.items);
+    setLoading(false);
   };
 
-  clearUsers = () => this.setState({ users: [], loading: false });
+  const getUser = async (username) => {
+    setLoading(true);
 
-  render() {
+    const res = await axios
+      .get(`http://api.github.com/users/${username}?client_id=${process.env.REACT_APP_GITHUB_CLIENT_ID}&client_secret=${process.env.REACT_APP_GITHUB_CLIENT_SECRET}`);
+    setUser(res.data);
+    setLoading(false)
+  }
 
-    const { users, loading } = this.state;
-    return (
+  const getUserRepos = async username => {
+    setLoading(true);
+
+    const res = await axios
+      .get(`http://api.github.com/users/${username}/repos?per_page=5&sort=created:asc&client_id=${process.env.REACT_APP_GITHUB_CLIENT_ID}&client_secret=${process.env.REACT_APP_GITHUB_CLIENT_SECRET}`);
+    setRepos(res.data);
+    setLoading(false)
+  }
+
+
+  const clearUsers = () => {
+    setUsers([]);
+    setLoading(false);
+  }
+
+  const showAlert = (msg, type) => {
+    setAlert({ msg, type });
+    setTimeout(() => setAlert(null), 5000)
+  }
+
+
+  
+  return (
+    <Router>
       <div className="App">
         <Navbar title="Github Finder" />
         <div className="container">
-          <Search searchUsers={this.searchUsers}
-            clearUsers={this.clearUsers}
-            showClear={users.length > 0 ? true : false} />
-          <Users
-            loading={loading}
-            users={users} />
+          <Alert alert={alert} />
+          <Switch>
+            < Route exact path='/' render={props => (
+              <Fragment>
+                <Search searchUsers={searchUsers}
+                  clearUsers={clearUsers}
+                  showClear={users.length > 0 ? true : false}
+                  setAlert={showAlert} />
+                <Users
+                  loading={loading}
+                  users={users} />
+              </Fragment>
+            )} />
+          </Switch>
+          <Route exact path='/about' component={About} />
+          <Route exact path='/user/:login' render={props => (
+            <User {...props}
+              getUser={getUser}
+              getUserRepos={getUserRepos}
+              repos={repos}
+              user={user}
+              loading={loading} />
+          )} />
+
+
         </div>
       </div>
-    );
-  }
+    </Router>
+  );
+
 }
 
 export default App;
